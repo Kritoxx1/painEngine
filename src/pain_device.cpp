@@ -1,10 +1,14 @@
 #include "pain_device.h"
 #include "pain_debug.h"
 #include <GLFW/glfw3.h>
+#include <cstdint>
+#include <limits>
 #include <stdexcept>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 #include <iostream>
+#include <cstring>
+#include <algorithm>
 
 namespace Pain {
 
@@ -15,6 +19,7 @@ PainDevice::PainDevice(PainWindow& window) : m_Window(window) {
   pickPhysicalDevice();
   createLogicalDevice();
   createCommandPool();
+  createSwapchain();
 }
 
 void PainDevice::createInstance() {
@@ -82,11 +87,11 @@ void PainDevice::createInstance() {
 }
 
 void PainDevice::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
-     createInfo = {};
-     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-     createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-     createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-     createInfo.pfnUserCallback = debugCallback;
+  createInfo = {}; // init with null
+  createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+  createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+  createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+  createInfo.pfnUserCallback = debugCallback;
 }
 
 
@@ -158,17 +163,63 @@ void PainDevice::pickPhysicalDevice() {
     vkGetPhysicalDeviceProperties(availableDevices[i], &deviceProps);
     vkGetPhysicalDeviceMemoryProperties(availableDevices[i], &deviceMemProps);
 
-    // I don't like these lines below this comment for some reason. Maybe make it better in future??
-    if (deviceCount == 1 && deviceProps.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
-      m_PhysicalDevice = availableDevices[i];
-    }
-
     std::cout << "Found Device: " << deviceProps.deviceName << "\n";
     std::cout << "Type: " << deviceProps.deviceType << "\n";
     std::cout << "ID: " << deviceProps.deviceID << "\n";
     std::cout << "Memory Type Count: " << deviceMemProps.memoryTypeCount << "\n";
     std::cout << "Memory Heap Count: " << deviceMemProps.memoryHeapCount << "\n";
+
+    if (isDeviceGud(availableDevices[i])) {
+      m_PhysicalDevice = availableDevices[i];
+      break;
+    }
   }
+}
+
+bool PainDevice::isDeviceGud(VkPhysicalDevice device) {
+  VkResult result{};
+  VkPhysicalDeviceProperties deviceProps{};
+  vkGetPhysicalDeviceProperties(device, &deviceProps);
+  if (deviceProps.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && isDeviceSupportingDesiredExtensions(device)) {
+    return true; // device is very gud
+  }
+
+  std::cout << "No gud devices were found! ;[ \n";
+  return false;
+}
+
+bool PainDevice::isDeviceSupportingDesiredExtensions(VkPhysicalDevice device) {
+  VkResult result;
+ 
+  uint32_t propertyCount = 0;
+  result = vkEnumerateDeviceExtensionProperties(device, nullptr, &propertyCount, nullptr);
+  ensure(result, "Failed to enumerate Properties count!");
+  std::cout << "Extensions found: " << propertyCount << "\n";
+
+  std::vector<VkExtensionProperties> extProperties(propertyCount);
+  result = vkEnumerateDeviceExtensionProperties(device, nullptr, &propertyCount, extProperties.data());
+  ensure(result, "Failed to enumerate Properties!");
+
+  uint32_t requiredCount = static_cast<uint32_t>(m_DeviceExtensions.size());
+  for (uint32_t i = 0; i < requiredCount; i++) {
+    const char* required = m_DeviceExtensions[i].c_str();
+    bool found = false;
+ 
+    for (uint32_t j = 0; j < propertyCount; j++) {
+      if (strcmp(extProperties[j].extensionName, required) == 0) {
+        found = true;
+        break;
+      }  
+    }
+  
+    if (!found) {
+      std::cout << "Missing extension: " << required << "\n";
+      return false;
+    }
+  }
+
+  std::cout << "All desired device extensions are supported!\n";
+  return true;
 }
 
 void PainDevice::createLogicalDevice() {
@@ -178,25 +229,26 @@ void PainDevice::createLogicalDevice() {
 
   float prio = 1.0f;
   VkDeviceQueueCreateInfo queueCreateInfo = {
-    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-    queueCreateInfo.pNext = nullptr,
-    queueCreateInfo.flags = (uint32_t)0,
-    queueCreateInfo.queueFamilyIndex = indices.FamilyIndex.value(),
-    queueCreateInfo.queueCount = 1,
-    queueCreateInfo.pQueuePriorities = &prio,
+    .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = (uint32_t)0,
+    .queueFamilyIndex = indices.FamilyIndex.value(),
+    .queueCount = 1,
+    .pQueuePriorities = &prio,
   };
 
+  const char* ext = m_DeviceExtensions.data()->c_str(); // Idk what im doing here but it works??
   VkDeviceCreateInfo deviceCreateInfo = {
-    deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-    deviceCreateInfo.pNext = nullptr,
-    deviceCreateInfo.flags = 0,
-    deviceCreateInfo.queueCreateInfoCount = 1,
-    deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo,
-    deviceCreateInfo.enabledLayerCount = 1,
-    deviceCreateInfo.ppEnabledLayerNames = m_Layers,
-    deviceCreateInfo.enabledExtensionCount = 0,
-    deviceCreateInfo.ppEnabledExtensionNames = nullptr,
-    deviceCreateInfo.pEnabledFeatures = nullptr
+    .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .queueCreateInfoCount = 1,
+    .pQueueCreateInfos = &queueCreateInfo,
+    .enabledLayerCount = 1,
+    .ppEnabledLayerNames = m_Layers,
+    .enabledExtensionCount = 1,
+    .ppEnabledExtensionNames = &ext,
+    .pEnabledFeatures = nullptr
   };
 
   result = vkCreateDevice(m_PhysicalDevice, &deviceCreateInfo, nullptr, &m_Device);
@@ -234,38 +286,10 @@ QueueInfo PainDevice::pickQueueFamily() {
     i++;
   }
 
-// === Information ===
-  //int k = 0;
-  //std::cout << "\n" << "Queue Family information: " << std::endl;
-  //for (const VkQueueFamilyProperties& queueFamily : queueFamilyProps) {
-  //  std::cout << "Queue Index: " << k << "\n";
-
-  //  std::cout << "  Compute: ";
-  //  if (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
-  //    std::cout << "True\n";
-  //  else
-  //    std::cout << "False\n";
-
-  //  std::cout << "  Transfer: ";
-  //  if (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT)
-  //    std::cout << "True\n";
-  //  else
-  //    std::cout << "False\n";
-
-  //  std::cout << "  Graphics: ";
-  //  if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-  //    std::cout << "True\n";
-  //  else
-  //    std::cout << "False\n";
-
-  //  std::cout << "\n";
-  //  k++;
-  //}
   return indices;
 }
 
 void PainDevice::createCommandPool() {
-  // TODO Implement
   VkResult result;
   QueueInfo indices = pickQueueFamily();
 
@@ -281,7 +305,157 @@ void PainDevice::createCommandPool() {
   std::cout << "Succesfully created command pool!\n";
 }
 
+void PainDevice::createSwapchain() {
+  VkResult result{};
+  SwapchainSupportDetails supportDetails = querySwapchainSupport();
+
+  VkSurfaceCapabilitiesKHR surfaceCapabilities = getSurfaceCapabilities();
+  VkSurfaceFormatKHR surfaceFormats = chooseSwapSurfaceFormat();
+  VkExtent2D extent = chooseSwapExtent(surfaceCapabilities);
+  VkPresentModeKHR presentMode = chooseSwapPresentMode();
+
+  VkSwapchainCreateInfoKHR swapchainCreateInfo{};
+  swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+  swapchainCreateInfo.pNext = nullptr;
+  swapchainCreateInfo.flags = 0;
+
+  swapchainCreateInfo.surface = m_Surface;
+
+  uint32_t imageCount = supportDetails.capabilities.minImageCount + 1;
+  if (supportDetails.capabilities.maxImageCount > 0 && imageCount > supportDetails.capabilities.maxImageCount) {
+       imageCount = supportDetails.capabilities.maxImageCount;
+  }
+  swapchainCreateInfo.minImageCount = imageCount; // double buffering
+  swapchainCreateInfo.imageFormat = surfaceFormats.format;
+  swapchainCreateInfo.imageColorSpace = surfaceFormats.colorSpace;
+  swapchainCreateInfo.imageExtent = extent;
+  swapchainCreateInfo.imageArrayLayers = 1;
+  swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+  swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE; // page 134
+  swapchainCreateInfo.queueFamilyIndexCount = 0;
+  swapchainCreateInfo.pQueueFamilyIndices = nullptr;
+  swapchainCreateInfo.preTransform = supportDetails.capabilities.currentTransform;
+  swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+  swapchainCreateInfo.presentMode = chooseSwapPresentMode();
+  swapchainCreateInfo.clipped = VK_TRUE;
+  swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE; // no old swapchain
+
+  result = vkCreateSwapchainKHR(m_Device, &swapchainCreateInfo,  nullptr, &m_Swapchain);
+  ensure(result, "Failed to create Swapchain"); 
+
+  vkGetSwapchainImagesKHR(m_Device, m_Swapchain, &imageCount, nullptr);
+  m_SwapchainImages.resize(imageCount);
+  vkGetSwapchainImagesKHR(m_Device, m_Swapchain, &imageCount, m_SwapchainImages.data());
+
+  m_SwapchainImageFormat = surfaceFormats.format;
+  m_SwapchainExtent = extent;
+
+  std::cout << "Swapchain successfully created!\n";
+}
+
+SwapchainSupportDetails PainDevice::querySwapchainSupport() {
+  VkResult result{};
+  SwapchainSupportDetails details{}; 
+
+  result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_PhysicalDevice, m_Surface, &details.capabilities);
+  ensure(result, "Failed to retrieve Surface capabilities!");
+
+  uint32_t formatCount = 0;
+  result = vkGetPhysicalDeviceSurfaceFormatsKHR(m_PhysicalDevice, m_Surface, &formatCount, nullptr);
+  ensure(result, "Failed to retrieve Surface Formats!");
+  
+  if (formatCount != 0) {
+    details.formats.resize(formatCount);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(m_PhysicalDevice, m_Surface, &formatCount, details.formats.data());
+  }
+
+  uint32_t presentModeCount = 0;
+  vkGetPhysicalDeviceSurfacePresentModesKHR(m_PhysicalDevice, m_Surface, &presentModeCount, nullptr);
+  ensure(result, "Failed to retrieve Present Mode count!");
+
+  if (presentModeCount != 0) {
+    details.presentMode.resize(presentModeCount);
+    result = vkGetPhysicalDeviceSurfacePresentModesKHR(m_PhysicalDevice, m_Surface, &presentModeCount, details.presentMode.data());
+    ensure(result, "Failed to retrieve Present Mode details");
+  }
+
+  return details;
+}
+
+VkSurfaceFormatKHR PainDevice::chooseSwapSurfaceFormat() {
+  VkResult result{};
+  VkSurfaceFormatKHR ret{};
+
+  uint32_t formatCount = 0;
+  result = vkGetPhysicalDeviceSurfaceFormatsKHR(m_PhysicalDevice, m_Surface, &formatCount, nullptr);
+  ensure(result, "Failed to get Surface Formats count!");
+
+  std::vector<VkSurfaceFormatKHR> availableFormats(formatCount);
+  result = vkGetPhysicalDeviceSurfaceFormatsKHR(m_PhysicalDevice, m_Surface, &formatCount, availableFormats.data());
+  ensure(result, "Failed to get Surface Formats!");
+
+  for (const VkSurfaceFormatKHR& availableFormat : availableFormats) {
+    if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+        return availableFormat;
+    }
+  }
+
+  return availableFormats[0];
+}
+
+VkPresentModeKHR PainDevice::chooseSwapPresentMode() {
+  VkResult result;
+
+  uint32_t presentModeCount = 0;
+  result = vkGetPhysicalDeviceSurfacePresentModesKHR(m_PhysicalDevice, m_Surface, &presentModeCount, nullptr);
+  ensure(result, "Failed to get surface present modes count!");
+  
+  std::vector<VkPresentModeKHR> presentModes(presentModeCount);
+
+  result = vkGetPhysicalDeviceSurfacePresentModesKHR(m_PhysicalDevice, m_Surface, &presentModeCount, presentModes.data());
+  ensure(result, "Failed to get surface present modes!");
+
+  for (const VkPresentModeKHR& presentMode : presentModes) {
+    if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+      std::cout << "Physical device supports desired Present Mode\n";
+      return presentMode;
+    }
+  }
+
+  return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+VkExtent2D PainDevice::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
+  VkResult result;
+  VkExtent2D extent{};
+
+  if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+    return capabilities.currentExtent;
+  } else {
+    int width, height;
+    glfwGetFramebufferSize(m_Window.m_Window, &width, &height);
+
+    extent = {
+      static_cast<uint32_t>(width),
+      static_cast<uint32_t>(height)
+    };
+
+    extent.width = std::clamp(extent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+    extent.height = std::clamp(extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+    return extent;
+  }
+}
+
+VkSurfaceCapabilitiesKHR PainDevice::getSurfaceCapabilities() {
+  VkSurfaceCapabilitiesKHR surfaceCapabilities{};
+  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_PhysicalDevice, m_Surface, &surfaceCapabilities);
+
+  return surfaceCapabilities;
+}
+
 PainDevice::~PainDevice() {
+  vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
   vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
   vkDestroyDevice(m_Device, nullptr);
   DestroyDebugUtilsMessengerEXT(m_Instance, debugMessenger, nullptr);

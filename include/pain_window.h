@@ -11,6 +11,9 @@ namespace Pain {
       PainWindow(const PainWindow &) = delete;
       PainWindow &operator=(const PainWindow &) = delete;
 
+      const int getWidth() {return width;}
+      const int getHeight() {return height;}
+
       bool shouldClose() { return glfwWindowShouldClose(this->m_Window); }
       void inputs();
 
