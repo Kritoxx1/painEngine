@@ -5,7 +5,7 @@
 #include "pain_device.h"
 
 namespace Pain {
-  class FirstApp {
+  class TestApp {
     public:
       static constexpr int WIDTH = 800;
       static constexpr int HEIGHT = 600;

@@ -4,7 +4,7 @@
 
 namespace Pain {
 
-void FirstApp::run() {
+void TestApp::run() {
   return; // Skip loop for now.
   while (!painWindow.shouldClose()) {
     glfwPollEvents();

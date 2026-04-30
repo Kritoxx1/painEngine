@@ -1,12 +1,11 @@
 #include "pain_app.h"
 
-#include <stdexcept>
 #include <iostream>
 #include <cstdlib>
 #include <vulkan/vulkan_core.h>
 
 int main() {
-  Pain::FirstApp app{};
+  Pain::TestApp app{};
 
   try {
     app.run();
