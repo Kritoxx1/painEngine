@@ -20,6 +20,7 @@ PainDevice::PainDevice(PainWindow& window) : m_Window(window) {
   createLogicalDevice();
   createCommandPool();
   createSwapchain();
+  createImageViews();
 }
 
 void PainDevice::createInstance() {
@@ -33,7 +34,7 @@ void PainDevice::createInstance() {
   appCreateInfo.engineVersion = VK_MAKE_VERSION(0, 0, 1);
   appCreateInfo.apiVersion = VK_API_VERSION_1_0;
 
-  VkInstanceCreateInfo instanceCreateInfo{};
+  VkInstanceCreateInfo instanceCreateInfo;
   instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   instanceCreateInfo.pNext = nullptr;
   instanceCreateInfo.flags = 0;
@@ -184,7 +185,7 @@ bool PainDevice::isDeviceGud(VkPhysicalDevice device) {
     return true; // device is very gud
   }
 
-  std::cout << "No gud devices were found! ;[ \n";
+  std::cout << "The device " << deviceProps.deviceName << " is not gud! ;[ \n";
   return false;
 }
 
@@ -454,7 +455,49 @@ VkSurfaceCapabilitiesKHR PainDevice::getSurfaceCapabilities() {
   return surfaceCapabilities;
 }
 
+// Page 72
+void PainDevice::createImageViews() {
+  VkResult result;
+
+  m_ImageViews.resize(m_SwapchainImages.size());
+  for (size_t i = 0; i < m_SwapchainImages.size(); i++) {
+    VkImageViewCreateInfo ivCreateInfo;
+    ivCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    ivCreateInfo.pNext = nullptr;
+    ivCreateInfo.flags = 0;
+
+    ivCreateInfo.image = m_SwapchainImages[i];
+    ivCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    ivCreateInfo.format = m_SwapchainImageFormat;
+
+    ivCreateInfo.components = {
+      VK_COMPONENT_SWIZZLE_IDENTITY,
+      VK_COMPONENT_SWIZZLE_IDENTITY,
+      VK_COMPONENT_SWIZZLE_IDENTITY,
+      VK_COMPONENT_SWIZZLE_IDENTITY
+    };
+
+    ivCreateInfo.subresourceRange = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .baseMipLevel = 0,
+      .levelCount = 1,
+      .baseArrayLayer = 0,
+      .layerCount = 1,
+    };
+
+
+    result = vkCreateImageView(m_Device, &ivCreateInfo, nullptr, &m_ImageViews[i]);
+    ensure(result, "Failed to create Image View!");
+  }
+  std::cout << "Succesfully creates Image View!\n";
+}
+
 PainDevice::~PainDevice() {
+
+  for (VkImageView imageView : m_ImageViews) {
+    vkDestroyImageView(m_Device, imageView, nullptr);
+  }
+
   vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
   vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
   vkDestroyDevice(m_Device, nullptr);
@@ -463,4 +506,4 @@ PainDevice::~PainDevice() {
   vkDestroyInstance(m_Instance, nullptr);
 }
 
-}
+} // NAMESPACE PAIN

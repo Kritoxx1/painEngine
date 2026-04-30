@@ -65,6 +65,8 @@ namespace Pain {
       VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
       VkSurfaceCapabilitiesKHR getSurfaceCapabilities();
 
+      void createImageViews();
+
       // DBG
       static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -109,6 +111,8 @@ namespace Pain {
       std::vector<VkImage> m_SwapchainImages;
       VkFormat m_SwapchainImageFormat;
       VkExtent2D m_SwapchainExtent;
+
+      std::vector<VkImageView> m_ImageViews{};
 
       VkCommandPool m_CommandPool{};
   };
