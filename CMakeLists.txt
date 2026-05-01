@@ -14,9 +14,6 @@ set(SOURCES
     src/pain_pipeline.cpp
     src/pain_device.cpp
     src/pain_swapchain.cpp
-    include/pain_swapchain.h
-    src/pain_swapchain.cpp
-    include/pain_swapchain.h
 )
  
 add_executable(${PROJECT_NAME} ${SOURCES})
