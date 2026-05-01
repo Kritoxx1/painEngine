@@ -43,8 +43,8 @@ void PainPipeline::createGraphicsPipeline(const char* vertPath, const char* frag
 {
   VkResult result;
 
-  assert(conf.pipelineLayout != VK_NULL_HANDLE && "Cannot create graphics pipeline:: no pipelineLayout provided in conf");
-  assert(conf.renderPass != VK_NULL_HANDLE && "Cannot create graphics pipeline:: no renderPass provided in conf");
+  pain_assert(conf.pipelineLayout != VK_NULL_HANDLE, "Cannot create graphics pipeline:: no pipelineLayout provided in conf");
+  pain_assert(conf.renderPass != VK_NULL_HANDLE, "Cannot create graphics pipeline:: no renderPass provided in conf");
 
   auto vertCode = readFile(vertPath);
   auto fragCode = readFile(fragPath);
@@ -70,7 +70,7 @@ void PainPipeline::createGraphicsPipeline(const char* vertPath, const char* frag
   shaderStage[1].pSpecializationInfo = nullptr;
 
   VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-  vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_DIVISOR_STATE_CREATE_INFO;
+  vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
   vertexInputInfo.vertexAttributeDescriptionCount = 0;
   vertexInputInfo.vertexBindingDescriptionCount = 0;
   vertexInputInfo.pVertexAttributeDescriptions = nullptr;
@@ -78,7 +78,7 @@ void PainPipeline::createGraphicsPipeline(const char* vertPath, const char* frag
 
   VkPipelineViewportStateCreateInfo viewportInfo{};
   viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-  viewportInfo.scissorCount = 1;
+  viewportInfo.viewportCount = 1;
   viewportInfo.pViewports = &conf.viewport;
   viewportInfo.scissorCount = 1;
   viewportInfo.pScissors = &conf.scissor;
@@ -119,6 +119,12 @@ void PainPipeline::createShaderModule(const std::vector<char>& code, VkShaderMod
 
   std::cout << "Succesfully created shader module!" << std::endl;
 }
+
+void PainPipeline::bind(VkCommandBuffer cmdBuff)
+{
+  vkCmdBindPipeline(cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsPipeline);
+}
+
 
 PipeLineConfigInfo PainPipeline::defaultPipelineConfigInfo(uint32_t w, uint32_t h) {
   PipeLineConfigInfo configInfo{};
