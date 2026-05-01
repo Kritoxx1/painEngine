@@ -3,6 +3,7 @@
 #include "pain_window.h"
 #include "pain_pipeline.h"
 #include "pain_device.h"
+#include "pain_swapchain.h"
 
 namespace Pain {
   class TestApp {
@@ -14,7 +15,8 @@ namespace Pain {
 
     private:
       PainWindow painWindow{WIDTH, HEIGHT, "Vulkan"};
-      PainPipeline painPipeline{"../src/shaders/default.vert.spv", "../src/shaders/default.frag.spv"};
       PainDevice painDevice{painWindow};
+      PainSwapchain painSwapchain{painDevice, painWindow.getExtent()};
+      PainPipeline painPipeline{painDevice, "../src/shaders/default.vert.spv", "../src/shaders/default.frag.spv", PainPipeline::defaultPipelineConfigInfo(WIDTH, HEIGHT)};
   };
 }

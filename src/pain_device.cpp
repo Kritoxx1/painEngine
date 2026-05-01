@@ -9,6 +9,7 @@
 #include <iostream>
 #include <cstring>
 #include <algorithm>
+#include <set>
 
 namespace Pain {
 
@@ -19,8 +20,61 @@ PainDevice::PainDevice(PainWindow& window) : m_Window(window) {
   pickPhysicalDevice();
   createLogicalDevice();
   createCommandPool();
-  createSwapchain();
-  createImageViews();
+
+  // Keeping both in the PainDevice class in case any errors occur
+  // createSwapchain();
+  // createImageViews();
+}
+
+VkFormat PainDevice::findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features)
+{
+  for (VkFormat format : candidates) {
+    VkFormatProperties props;
+    vkGetPhysicalDeviceFormatProperties(m_PhysicalDevice, format, &props);
+
+    if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features) {
+      return format;
+    } else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features) {
+      return format;
+    }
+  }
+  throw std::runtime_error("failed to find supported format!");
+}
+
+void PainDevice::createImageWithInfo(const VkImageCreateInfo &imageInfo, VkMemoryPropertyFlags properties, VkImage &image, VkDeviceMemory &imageMemory)
+{
+  if (vkCreateImage(m_Device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
+    throw std::runtime_error("failed to create image!");
+  }
+
+  VkMemoryRequirements memRequirements;
+  vkGetImageMemoryRequirements(m_Device, image, &memRequirements);
+
+  VkMemoryAllocateInfo allocInfo{};
+  allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  allocInfo.allocationSize = memRequirements.size;
+  allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+
+  if (vkAllocateMemory(m_Device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
+    throw std::runtime_error("failed to allocate image memory!");
+  }
+
+  if (vkBindImageMemory(m_Device, image, imageMemory, 0) != VK_SUCCESS) {
+    throw std::runtime_error("failed to bind image memory!");
+  }
+}
+
+uint32_t PainDevice::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+  VkPhysicalDeviceMemoryProperties memProperties;
+  vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice, &memProperties);
+  for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+    if ((typeFilter & (1 << i)) &&
+      (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+      return i;
+    }
+  }
+
+  throw std::runtime_error("failed to find suitable memory type!");
 }
 
 void PainDevice::createInstance() {
@@ -221,25 +275,31 @@ bool PainDevice::isDeviceSupportingDesiredExtensions(VkPhysicalDevice device) {
 void PainDevice::createLogicalDevice() {
   VkResult result;
 
-  QueueInfo indices = pickQueueFamily();
+  QueueInfo indices = pickQueueFamily(m_PhysicalDevice);
+
+  std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+  std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily, indices.presentFamily};
 
   float prio = 1.0f;
-  VkDeviceQueueCreateInfo queueCreateInfo = {
-    .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-    .pNext = nullptr,
-    .flags = (uint32_t)0,
-    .queueFamilyIndex = indices.FamilyIndex.value(),
-    .queueCount = 1,
-    .pQueuePriorities = &prio,
-  };
+  for (uint32_t queueFamily : uniqueQueueFamilies)
+  {
+    VkDeviceQueueCreateInfo queueCreateInfo{};
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.pNext = nullptr;
+    queueCreateInfo.flags = 0;
+    queueCreateInfo.queueFamilyIndex = queueFamily;
+    queueCreateInfo.queueCount = 1;
+    queueCreateInfo.pQueuePriorities = &prio;
+    queueCreateInfos.push_back(queueCreateInfo);
+  }
 
-  const char* ext = m_DeviceExtensions.data()->c_str(); // Idk what im doing here but it works??
+  const char* ext = m_DeviceExtensions.data()->c_str();
   VkDeviceCreateInfo deviceCreateInfo = {
     .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
     .pNext = nullptr,
     .flags = 0,
     .queueCreateInfoCount = 1,
-    .pQueueCreateInfos = &queueCreateInfo,
+    .pQueueCreateInfos = nullptr,
     .enabledLayerCount = 1,
     .ppEnabledLayerNames = m_Layers,
     .enabledExtensionCount = 1,
@@ -247,37 +307,41 @@ void PainDevice::createLogicalDevice() {
     .pEnabledFeatures = nullptr
   };
 
+  deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+  deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
+
   result = vkCreateDevice(m_PhysicalDevice, &deviceCreateInfo, nullptr, &m_Device);
   ensure(result, "Failed to create Logical Device!");
   std::cout << "Created Logical Device!\n";
 
-  vkGetDeviceQueue(m_Device, indices.FamilyIndex.value(), 0, &m_GraphicsQueue);
+  vkGetDeviceQueue(m_Device, indices.graphicsFamily, 0, &m_GraphicsQueue);
+  vkGetDeviceQueue(m_Device, indices.presentFamily, 0, &m_PresentQueue);
   std::cout << "Queued device Queue!\n";
 }
 
-QueueInfo PainDevice::pickQueueFamily() {
+QueueInfo PainDevice::pickQueueFamily(VkPhysicalDevice device) {
   VkResult result;
   QueueInfo indices;
 
   uint32_t queueFamilyCount = 0;
-  vkGetPhysicalDeviceQueueFamilyProperties(m_PhysicalDevice, &queueFamilyCount, nullptr);
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
 
   std::vector<VkQueueFamilyProperties> queueFamilyProps(queueFamilyCount);
-  vkGetPhysicalDeviceQueueFamilyProperties(m_PhysicalDevice, &queueFamilyCount, queueFamilyProps.data());
-
-  VkQueueFamilyProperties pickedQueueFamily{};
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilyProps.data());
 
   int i = 0;
   for (const VkQueueFamilyProperties& queueFamily : queueFamilyProps) {
-
     if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-      indices.FamilyIndex = i;
-      pickedQueueFamily = queueFamily;
+      indices.graphicsFamily = i;
     }
 
-    if (indices.isComplete()) {
-      break;
+    VkBool32 presentSupport = false;
+    vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_Surface, &presentSupport);
+    if (presentSupport) {
+      indices.presentFamily = i;
     }
+
+    if (indices.isComplete()) break;
 
     i++;
   }
@@ -287,13 +351,13 @@ QueueInfo PainDevice::pickQueueFamily() {
 
 void PainDevice::createCommandPool() {
   VkResult result;
-  QueueInfo indices = pickQueueFamily();
+  QueueInfo indices = pickQueueFamily(m_PhysicalDevice);
 
   VkCommandPoolCreateInfo poolInfo = {
     .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
     .pNext = nullptr,
     .flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-    .queueFamilyIndex = indices.FamilyIndex.value(),
+    .queueFamilyIndex = indices.graphicsFamily,
   };
 
   result = vkCreateCommandPool(m_Device, &poolInfo, nullptr, &m_CommandPool);
@@ -321,7 +385,7 @@ void PainDevice::createSwapchain() {
   if (supportDetails.capabilities.maxImageCount > 0 && imageCount > supportDetails.capabilities.maxImageCount) {
        imageCount = supportDetails.capabilities.maxImageCount;
   }
-  swapchainCreateInfo.minImageCount = imageCount; // double buffering
+  swapchainCreateInfo.minImageCount = imageCount;
   swapchainCreateInfo.imageFormat = surfaceFormats.format;
   swapchainCreateInfo.imageColorSpace = surfaceFormats.colorSpace;
   swapchainCreateInfo.imageExtent = extent;
@@ -479,7 +543,6 @@ void PainDevice::createImageViews() {
       .baseArrayLayer = 0,
       .layerCount = 1,
     };
-
 
     result = vkCreateImageView(m_Device, &ivCreateInfo, nullptr, &m_ImageViews[i]);
     ensure(result, "Failed to create Image View!");

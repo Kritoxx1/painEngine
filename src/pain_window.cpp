@@ -35,9 +35,6 @@ void PainWindow::createWindowSurface(VkInstance instance, VkSurfaceKHR* surface)
 }
 
 PainWindow::~PainWindow() {
-  // VULKAN
-
-  // GLFW
   glfwDestroyWindow(m_pWindow);
   glfwTerminate();
 }

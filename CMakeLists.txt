@@ -13,6 +13,10 @@ set(SOURCES
     src/pain_window.cpp
     src/pain_pipeline.cpp
     src/pain_device.cpp
+    src/pain_swapchain.cpp
+    include/pain_swapchain.h
+    src/pain_swapchain.cpp
+    include/pain_swapchain.h
 )
  
 add_executable(${PROJECT_NAME} ${SOURCES})
@@ -37,6 +41,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Vulkan::Headers
 )
 
+# TODO: Implement mac support.
 if(UNIX)
     find_package(Vulkan REQUIRED)
     target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan)

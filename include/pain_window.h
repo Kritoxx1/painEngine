@@ -11,9 +11,10 @@ namespace Pain {
       PainWindow(const PainWindow &) = delete;
       PainWindow &operator=(const PainWindow &) = delete;
 
-      const int getWidth() {return width;}
-      const int getHeight() {return height;}
+      int getWidth() const {return width;}
+      int getHeight() const  {return height;}
       void getFramebufferSize(int* w, int* h) {glfwGetFramebufferSize(m_pWindow, w, h);}
+      VkExtent2D getExtent() { return {static_cast<uint32_t>(width), static_cast<uint32_t>(height)}; }
 
       bool shouldClose() { return glfwWindowShouldClose(this->m_pWindow); }
       void inputs();
