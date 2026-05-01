@@ -34,7 +34,10 @@ include_directories(glfw/include)
 
 add_subdirectory(Vulkan-Headers)
 include_directories(Vulkan-Headers/include)
- 
+
+add_subdirectory(glm)
+include_directories(glm/glm)
+
 # ── Link libraries ────────────────────────────────────────────────────────────
 target_link_libraries(${PROJECT_NAME} PRIVATE 
     glfw 
