@@ -4,7 +4,8 @@ project(painEngine)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_FLAGS "-g")
+
+
 
 # ── Source files ──────────────────────────────────────────────────────────────
 set(SOURCES
@@ -14,11 +15,20 @@ set(SOURCES
     src/pain_pipeline.cpp
     src/pain_device.cpp
     src/pain_swapchain.cpp
-        src/pain_model.cpp
-        include/pain_model.h
+    src/pain_model.cpp
 )
  
 add_executable(${PROJECT_NAME} ${SOURCES})
+
+target_compile_definitions(
+        ${PROJECT_NAME} PRIVATE
+        $<$<CONFIG:Debug>:_PAIN_DEBUG>
+)
+
+target_compile_options(
+        ${PROJECT_NAME} PRIVATE
+        $<$<CONFIG:Debug>:-g>
+)
 
 # Compile Shaders
 add_custom_target(compile_shaders ALL
