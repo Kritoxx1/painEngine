@@ -16,6 +16,7 @@ set(SOURCES
     src/pain_device.cpp
     src/pain_swapchain.cpp
     src/pain_model.cpp
+    src/pain_input.cpp
 )
  
 add_executable(${PROJECT_NAME} ${SOURCES})

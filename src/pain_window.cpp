@@ -1,8 +1,9 @@
 #include "pain_window.h"
+#include "pain_input.h"
+#include "pain_debug.h"
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <stdexcept>
-#include "pain_debug.h"
 
 namespace Pain {
 
@@ -10,6 +11,7 @@ PainWindow::PainWindow(int w, int h, const char* n)
                     : width(w), height(h), title(n) 
 {
   init();
+  Input::Init(m_pWindow);
 }
 
 void PainWindow::init() {
@@ -21,7 +23,7 @@ void PainWindow::init() {
 }
 
 void PainWindow::inputs() {
-  if (glfwGetKey(m_pWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+  if (Input::KeyPressed(GLFW_KEY_Q)) {
     glfwSetWindowShouldClose(m_pWindow, GLFW_TRUE);
   }
 }

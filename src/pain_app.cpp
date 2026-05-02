@@ -1,5 +1,6 @@
 #include "pain_app.h"
 #include "pain_debug.h"
+#include "pain_input.h"
 #include <GLFW/glfw3.h>
 #include <array>
 
@@ -17,6 +18,7 @@ TestApp::TestApp()
   // return; // Skip loop for now.
   while (!painWindow.shouldClose()) {
     glfwPollEvents();
+    Input::Update();
     painWindow.inputs();
     draw();
   }
