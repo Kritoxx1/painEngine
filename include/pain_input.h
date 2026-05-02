@@ -1,3 +1,4 @@
+// Input code was heavily inspired from the Hell2025 engine by Chris Burrows (@livinamuk)
 #pragma once
 
 namespace Pain {
