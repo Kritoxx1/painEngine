@@ -1,9 +1,11 @@
 #pragma once
-
 #include "pain_window.h"
 #include "pain_pipeline.h"
 #include "pain_device.h"
 #include "pain_swapchain.h"
+#include "pain_model.h"
+#include <memory>
+#include <vector>
 
 namespace Pain {
   class TestApp {
@@ -11,12 +13,27 @@ namespace Pain {
       static constexpr int WIDTH = 800;
       static constexpr int HEIGHT = 600;
 
+      TestApp();
+      ~TestApp();
+
+      TestApp(const TestApp&) = delete;
+      TestApp &operator=(const TestApp&) = delete;
+
       void run();
 
     private:
+      void loadModels();
+      void createPipelineLayout();
+      void createPipeline();
+      void createCommandBuffers();
+      void draw();
+
       PainWindow painWindow{WIDTH, HEIGHT, "Vulkan"};
       PainDevice painDevice{painWindow};
       PainSwapchain painSwapchain{painDevice, painWindow.getExtent()};
-      PainPipeline painPipeline{painDevice, "../src/shaders/default.vert.spv", "../src/shaders/default.frag.spv", PainPipeline::defaultPipelineConfigInfo(WIDTH, HEIGHT)};
+      std::unique_ptr<PainPipeline> painPipeline;
+      VkPipelineLayout pipelineLayout;
+      std::vector<VkCommandBuffer> commandBuffers;
+      std::unique_ptr<PainModel> painModel;
   };
 }

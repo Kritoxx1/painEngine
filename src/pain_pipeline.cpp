@@ -1,11 +1,11 @@
 #include "pain_pipeline.h"
 #include "pain_device.h"
+#include "pain_model.h"
 #include "pain_debug.h"
 #include <fstream>
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
-#include <cassert>
 
 namespace Pain {
 PainPipeline::PainPipeline(PainDevice& device, const char* vertPath, const char* fragPath, const PipeLineConfigInfo& conf)
@@ -69,12 +69,14 @@ void PainPipeline::createGraphicsPipeline(const char* vertPath, const char* frag
   shaderStage[1].pNext = nullptr;
   shaderStage[1].pSpecializationInfo = nullptr;
 
+  auto bindingDesc = PainModel::Vertex::getBindingDescription();
+  auto attribDesc = PainModel::Vertex::getAttributeDescription();
   VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
   vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-  vertexInputInfo.vertexAttributeDescriptionCount = 0;
-  vertexInputInfo.vertexBindingDescriptionCount = 0;
-  vertexInputInfo.pVertexAttributeDescriptions = nullptr;
-  vertexInputInfo.pVertexBindingDescriptions = nullptr;
+  vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribDesc.size());
+  vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDesc.size());
+  vertexInputInfo.pVertexAttributeDescriptions = attribDesc.data();
+  vertexInputInfo.pVertexBindingDescriptions = bindingDesc.data();
 
   VkPipelineViewportStateCreateInfo viewportInfo{};
   viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;

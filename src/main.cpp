@@ -2,7 +2,6 @@
 
 #include <iostream>
 #include <cstdlib>
-#include <vulkan/vulkan_core.h>
 
 int main() {
   Pain::TestApp app{};

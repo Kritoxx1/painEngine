@@ -30,6 +30,7 @@ class PainPipeline {
     PainPipeline(const PainPipeline&) = delete;
     void operator=(const PainPipeline&) = delete;
 
+    void bind(VkCommandBuffer cmdBuff);
     static PipeLineConfigInfo defaultPipelineConfigInfo(uint32_t w, uint32_t h);
 
   private:

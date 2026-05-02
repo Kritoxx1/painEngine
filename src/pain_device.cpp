@@ -550,6 +550,33 @@ void PainDevice::createImageViews() {
   std::cout << "Succesfully creates Image View!\n";
 }
 
+void PainDevice::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
+  VkResult result;
+
+  VkBufferCreateInfo bufferInfo = {};
+  bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+  bufferInfo.size = size;
+  bufferInfo.usage = usage;
+  bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+  result = vkCreateBuffer(m_Device, &bufferInfo, nullptr, &buffer);
+  ensure(result, "failed to create vertex buffer");
+
+  VkMemoryRequirements memRequirements;
+  vkGetBufferMemoryRequirements(m_Device, buffer, &memRequirements);
+
+  VkMemoryAllocateInfo allocInfo = {};
+  allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  allocInfo.allocationSize = memRequirements.size;
+  allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+
+  result = vkAllocateMemory(m_Device, &allocInfo, nullptr, &bufferMemory);
+  ensure(result, "Failed to allocate vbuffer Memory!");
+
+  vkBindBufferMemory(m_Device, buffer, bufferMemory, 0);
+}
+
+
 PainDevice::~PainDevice() {
 
   for (VkImageView imageView : m_ImageViews) {

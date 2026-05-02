@@ -50,12 +50,15 @@ namespace Pain
     VkPhysicalDevice pdevice() { return m_PhysicalDevice; }
     VkSurfaceKHR surface() { return m_Surface; }
     SwapchainSupportDetails getSwapChainSupport() { return querySwapchainSupport(); }
+    VkCommandPool getCommandPool() { return m_CommandPool; }
     VkQueue graphicsQueue() { return m_GraphicsQueue; }
     VkQueue presentQueue() { return m_PresentQueue; }
     QueueInfo findPhysicalQueueFamilies() { return pickQueueFamily(m_PhysicalDevice); }
     VkFormat findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
     void createImageWithInfo(const VkImageCreateInfo &imageInfo, VkMemoryPropertyFlags properties, VkImage &image, VkDeviceMemory &imageMemory);
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+
+    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 
   private:
     void createInstance();
