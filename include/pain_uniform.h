@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glm/gtc/type_ptr.hpp>
+#include <gtc/type_ptr.hpp>
 
 #include "pain_device.h"
 
