@@ -64,7 +64,7 @@ VkResult PainSwapchain::acquireNextImage(uint32_t *imageIndex) {
       device.device(),
       swapChain,
       std::numeric_limits<uint64_t>::max(),
-      imageAvailableSemaphores[currentFrame],  // must be a not signaled semaphore
+      imageAvailableSemaphores[currentFrame],
       VK_NULL_HANDLE,
       imageIndex);
 
@@ -72,9 +72,15 @@ VkResult PainSwapchain::acquireNextImage(uint32_t *imageIndex) {
 }
 
 VkResult PainSwapchain::submitCommandBuffers(
-    const VkCommandBuffer *buffers, uint32_t *imageIndex) {
+  const VkCommandBuffer *buffers, uint32_t *imageIndex)
+{
   if (imagesInFlight[*imageIndex] != VK_NULL_HANDLE) {
-    vkWaitForFences(device.device(), 1, &imagesInFlight[*imageIndex], VK_TRUE, UINT64_MAX);
+    vkWaitForFences(
+      device.device(),
+      1,
+      &imagesInFlight[*imageIndex],
+      VK_TRUE,
+      UINT64_MAX);
   }
   imagesInFlight[*imageIndex] = inFlightFences[currentFrame];
 
