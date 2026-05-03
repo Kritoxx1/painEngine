@@ -18,7 +18,7 @@ set(SOURCES
     src/pain_model.cpp
     src/pain_input.cpp
     src/pain_camera.cpp
-    src/pain_uniform.cpp
+        src/pain_buffer.cpp
 )
  
 add_executable(${PROJECT_NAME} ${SOURCES})

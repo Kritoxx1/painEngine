@@ -17,6 +17,7 @@ public:
   void update();
 
 private:
+  void createDescriptorSet();
   class PainDevice& painDevice;
 
 };
